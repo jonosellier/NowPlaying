@@ -1,0 +1,8 @@
+AddonId: NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209
+Packages:
+  - Version: 0.1.0
+    RequiredApiVersion: 6.11.0.0
+    ReleaseDate: 2025-05-09
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.1.0/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_1_0.pext
+    Changelog:
+      - Initial Release
