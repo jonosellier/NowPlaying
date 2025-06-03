@@ -12,6 +12,8 @@ namespace NowPlaying
     public class NowPlayingSettings : ObservableObject
     {
         public ICommand OpenDialog { get; set; }
+        public ICommand CloseGame { get; set; }
+        public ICommand ReturnToGame { get; set; }
         private NowPlayingData _runningGame;
 
         // Property with notification
@@ -36,6 +38,20 @@ namespace NowPlaying
             {
                 _isGameRunning = value;
                 OnPropertyChanged();
+            }
+        }
+
+        private bool _selectedGameRunning;
+        public bool IsSelectedGameRunning
+        {
+            get => _selectedGameRunning;
+            set
+            {
+                if (_selectedGameRunning!= value)
+                {
+                    _selectedGameRunning = value;
+                    OnPropertyChanged();
+                }
             }
         }
     }

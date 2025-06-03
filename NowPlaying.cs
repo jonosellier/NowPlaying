@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using Playnite.SDK;
 using Playnite.SDK.Events;
@@ -46,7 +49,10 @@ namespace NowPlaying
             }
         }
 
+
         public ICommand LaunchCommand;
+        public ICommand ReturnCommand;
+        public ICommand ExitCommand;
 
         private static void ExecuteShowDialog(IPlayniteAPI api)
         {
@@ -68,13 +74,28 @@ namespace NowPlaying
             };
 
             LaunchCommand = new RelayCommand(() => ExecuteShowDialog(api));
+            ReturnCommand = new RelayCommand(() => ExecuteReturnToGame(api));
+            ExitCommand = new RelayCommand(() => ExecuteCloseGame(api));
             settings.Settings.OpenDialog = LaunchCommand;
+            settings.Settings.CloseGame = ExitCommand;
+            settings.Settings.ReturnToGame = ReturnCommand;
             AddSettingsSupport(new AddSettingsSupportArgs
             {
                 SourceName = "NowPlaying",
                 SettingsRoot = $"settings.Settings"
             });
+        }
 
+        public static void ExecuteReturnToGame(IPlayniteAPI api)
+        {
+            var GameData = CreateNowPlayingData(api, api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
+            ReturnToGame(GameData);
+        }
+
+        public static void ExecuteCloseGame(IPlayniteAPI api)
+        {
+            var GameData = CreateNowPlayingData(api, api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
+            CloseGame(GameData);
         }
 
         public override void OnGameInstalled(OnGameInstalledEventArgs args)
@@ -156,6 +177,7 @@ namespace NowPlaying
                 GameName = game.Name,
                 ProcessId = FindRunningGameProcess(game)?.Id ?? processId ?? -1,
                 IconPath = GetFullIconPath(api, game),
+                Id = game.Id.ToString()
             };
         }
 
@@ -447,5 +469,93 @@ namespace NowPlaying
         public string GameName { get; set; }
         public int ProcessId { get; set; }
         public string IconPath { get; set; }
+        public string Id { get; set; }
+    }
+
+    public class StringMonitor
+    {
+        private string _currentData;
+        private readonly Func<string> _fetchData;
+        private readonly TimeSpan _pollingInterval;
+        private readonly IEqualityComparer<string> _comparer;
+        private Thread _monitorThread;
+        private bool _isRunning;
+
+        public event EventHandler<string> DataChanged;
+
+        public StringMonitor(
+            Func<string> fetchData,
+            TimeSpan pollingInterval,
+            IEqualityComparer<string> comparer = null)
+        {
+            _fetchData = fetchData;
+            _pollingInterval = pollingInterval;
+            _comparer = comparer ?? EqualityComparer<string>.Default;
+        }
+
+        public void StartMonitoring()
+        {
+            if (_isRunning)
+                return;
+
+            _isRunning = true;
+            _currentData = _fetchData();
+
+            // Raise initial data event
+            OnDataChanged(_currentData);
+
+            _monitorThread = new Thread(() =>
+            {
+                while (_isRunning)
+                {
+                    Thread.Sleep(_pollingInterval);
+
+                    try
+                    {
+                        var newData = _fetchData();
+
+                        // Check if data has changed
+                        if (_currentData != newData)
+                        {
+                            _currentData = newData;
+                            OnDataChanged(newData);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error fetching data: {ex.Message}");
+                    }
+                }
+            });
+
+            _monitorThread.IsBackground = true;
+            _monitorThread.Start();
+        }
+
+        public void StopMonitoring()
+        {
+            _isRunning = false;
+        }
+
+        protected virtual void OnDataChanged(string data)
+        {
+            DataChanged?.Invoke(this, data);
+        }
+    }
+
+    public class EqualityConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values == null || values.Length != 2)
+                return false;
+
+            return Equals(values[0], values[1]);
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
