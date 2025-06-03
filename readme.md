@@ -89,7 +89,7 @@ In addition to opening a window to control the process, the extension exposes th
 </ButtonEx>
 ```
 
-## Directly Exdsiting or Resuming a Game
+## Directly Exiting or Resuming a Game
 
 The Commands `ReturnToGame` and `CloseGame` will let you directly resume or exit a game. If you place them inside `GameDetails.xaml` you can control visibility with `Game.IsRunning` to only show controls for a running game
 
