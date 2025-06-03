@@ -88,5 +88,46 @@ In addition to opening a window to control the process, the extension exposes th
   </StackPanel>
 </ButtonEx>
 ```
+
+## Directly Exdsiting or Resuming a Game
+
+The Commands `ReturnToGame` and `CloseGame` will let you directly resume or exit a game. If you place them inside `GameDetails.xaml` you can control visibility with `Game.IsRunning` to only show controls for a running game
+
+```xml
+<ButtonEx Command="{PluginSettings Plugin=NowPlaying, Path=ReturnToGame}">
+  <ButtonEx.Style>
+    <Style TargetType="ButtonEx"
+            BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Visibility"
+              Value="Visible"/>
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Game.IsRunning}"
+                      Value="False">
+          <Setter Property="Visibility"
+                  Value="Collapsed"/>
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </ButtonEx.Style>
+  Return to Game
+</ButtonEx>
+<ButtonEx Command="{PluginSettings Plugin=NowPlaying, Path=CloseGame}">
+  <ButtonEx.Style>
+    <Style TargetType="ButtonEx"
+            BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Visibility"
+              Value="Visible"/>
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Game.IsRunning}"
+                      Value="False">
+          <Setter Property="Visibility"
+                  Value="Collapsed"/>
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </ButtonEx.Style>
+  Exit
+</ButtonEx>
+```
 ---
 # Special Thanks to MikeAniki and V for helping out with the testing and implementation details
