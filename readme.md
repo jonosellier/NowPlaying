@@ -139,5 +139,6 @@ The Commands `ReturnToGame` and `CloseGame` will let you directly resume or exit
 |`IsGameRunning`|Boolean|`true` if a game is currently running, `false` otherwise|Used to conditionally show buttons based on a game being run|
 |`RunningGame.IconPath`|String|The full URI of the currently Running Game's Icon| For visual context for whatever the currently running Game is|
 |`RunningGame.GameName`|String|The full Name of the currently running Game | For display of the currently running game |
+|`SessionLength`|String|The length of the current gaming session, expressed as `H:MM`| Updates every 10s. E.g. A session of length 123 minutes will be displayed as `2:03`.
 ---
 # Special Thanks to MikeAniki and V for helping out with the testing and implementation details
