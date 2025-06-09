@@ -2,14 +2,11 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using Playnite.SDK;
 using Playnite.SDK.Events;
@@ -34,7 +31,6 @@ namespace NowPlaying
         private NowPlayingData _gameData;
 
         public event PropertyChangedEventHandler PropertyChanged;
-
         public NowPlayingData GameData
         {
             get => _gameData;
@@ -175,9 +171,10 @@ namespace NowPlaying
             return new NowPlayingData
             {
                 GameName = game.Name,
-                ProcessId = FindRunningGameProcess(game)?.Id ?? processId ?? -1,
+                ProcessId = FindRunningGameProcess(game, processId)?.Id ?? processId ?? -1,
                 IconPath = GetFullIconPath(api, game),
-                Id = game.Id.ToString()
+                Id = game.Id.ToString(),
+                StartTime = DateTime.Now
             };
         }
 
@@ -196,40 +193,18 @@ namespace NowPlaying
                 return null;
             }
         }
-        private static Process FindRunningGameProcess(Game game)
+
+        private static Process FindRunningGameProcess(Game game, int? pid)
         {
             if (game == null) return null;
 
             try
             {
+                // Get process tree starting from the provided PID
+                var processTree = GetProcessTree(pid);
+
                 // Get all executable files in the game installation directory and subdirectories
-                var gameExecutables = new List<string>();
-                try
-                {
-                    gameExecutables = Directory.GetFiles(game.InstallDirectory, "*.exe", SearchOption.AllDirectories)
-                        .Select(path => Path.GetFileNameWithoutExtension(path))
-                        .ToList();
-
-                    // Add common variations
-                    var additionalNames = new List<string>();
-                    foreach (var exe in gameExecutables)
-                    {
-                        // Add variations like "game-win64", "game_launcher", etc.
-                        additionalNames.Add(exe.Replace("-", ""));
-                        additionalNames.Add(exe.Replace("_", ""));
-                        additionalNames.Add(exe.Replace(" ", ""));
-                        additionalNames.Add(exe.Replace("-", " "));
-                        additionalNames.Add(exe.Replace("_", " "));
-                        additionalNames.Add(exe.Replace(" ", " "));
-                    }
-                    gameExecutables.AddRange(additionalNames);
-
-                    logger.Debug($"Found {gameExecutables.Count} potential game executables in {game.InstallDirectory}");
-                }
-                catch (Exception ex)
-                {
-                    logger.Error($"Error scanning game directory: {ex.Message}");
-                }
+                var gameExecutables = GetGameExecutables(game);
 
                 // Get the game name words for title comparison
                 string gameName = game.Name;
@@ -237,9 +212,100 @@ namespace NowPlaying
                     StringSplitOptions.RemoveEmptyEntries);
 
                 logger.Debug($"Game name for matching: {gameName}, split into {gameNameWords.Length} words");
+                logger.Debug($"Process tree contains {processTree.Count} processes");
 
-                // Get all processes with main window
-                Process[] allProcesses = Process.GetProcesses()
+                // Filter process tree to only include processes with main windows and sufficient memory
+                var candidateProcesses = processTree.Where(p =>
+                {
+                    try
+                    {
+                        return !p.HasExited &&
+                               p.MainWindowHandle != IntPtr.Zero &&
+                               !string.IsNullOrEmpty(p.MainWindowTitle) &&
+                               p.WorkingSet64 > 100 * 1024 * 1024;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }).ToList();
+
+                logger.Debug($"Found {candidateProcesses.Count} candidate processes in tree");
+
+                var candidates = new List<Process>();
+                var nameMatchCandidates = new List<Process>();
+                var titleMatchCandidates = new List<(Process Process, int MatchCount)>();
+                var inaccessibleCandidates = new List<Process>();
+
+                foreach (var p in candidateProcesses)
+                {
+                    try
+                    {
+                        // Check if process name matches any executable in the game folder
+                        bool nameMatches = gameExecutables.Any(exe =>
+                            string.Equals(exe, p.ProcessName, StringComparison.OrdinalIgnoreCase));
+
+                        // Check window title for matches with game name
+                        int titleMatchScore = CalculateTitleMatchScore(p, gameNameWords);
+
+                        try
+                        {
+                            // Try to access the module info
+                            var modulePath = p.MainModule.FileName;
+                            if (modulePath.IndexOf(game.InstallDirectory, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                candidates.Add(p);
+                            }
+                            else if (nameMatches)
+                            {
+                                nameMatchCandidates.Add(p);
+                            }
+                            else if (titleMatchScore > 0)
+                            {
+                                titleMatchCandidates.Add((p, titleMatchScore));
+                            }
+                        }
+                        catch
+                        {
+                            // Can't access module info (likely due to 32/64 bit mismatch)
+                            if (nameMatches)
+                            {
+                                nameMatchCandidates.Add(p);
+                            }
+                            else if (titleMatchScore > 0)
+                            {
+                                titleMatchCandidates.Add((p, titleMatchScore));
+                            }
+                            else
+                            {
+                                inaccessibleCandidates.Add(p);
+                            }
+                        }
+                    }
+                    catch { /* Skip processes we can't access at all */ }
+                }
+
+                // Priority order: direct path match, window title match, process name match, then best guess
+                var bestMatch = FindBestMatch(candidates, titleMatchCandidates, nameMatchCandidates, inaccessibleCandidates, pid);
+
+                return bestMatch;
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"Error finding game process: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static List<Process> GetProcessTree(int? rootPid)
+        {
+            var processTree = new List<Process>();
+
+            if (rootPid == null || rootPid <= 0)
+            {
+                logger.Debug("No root PID provided, using all processes with main windows");
+                // Fallback to all processes with main windows if no PID provided
+                return Process.GetProcesses()
                     .Where(p =>
                     {
                         try
@@ -251,121 +317,185 @@ namespace NowPlaying
                             return false;
                         }
                     })
-                    .ToArray();
+                    .ToList();
+            }
 
-                var candidates = new List<Process>();
-                var nameMatchCandidates = new List<Process>();
-                var titleMatchCandidates = new List<(Process Process, int MatchCount)>();
-                var inaccessibleCandidates = new List<Process>();
-
-                DateTime gameStartTime = DateTime.Now; // Use current time as fallback
-
-                foreach (var p in allProcesses)
+            try
+            {
+                // Start with the root process
+                var rootProcess = Process.GetProcessById(rootPid.Value);
+                if (rootProcess != null && !rootProcess.HasExited)
                 {
-                    try
-                    {
-                        // Check memory usage first
-                        if (!p.HasExited && p.WorkingSet64 > 100 * 1024 * 1024)
-                        {
-                            // Check if process name matches any executable in the game folder
-                            bool nameMatches = gameExecutables.Any(exe =>
-                                string.Equals(exe, p.ProcessName, StringComparison.OrdinalIgnoreCase));
-
-                            // Check window title for matches with game name
-                            int titleMatchScore = 0;
-                            if (p.MainWindowHandle != IntPtr.Zero && !string.IsNullOrEmpty(p.MainWindowTitle))
-                            {
-                                string[] windowTitleWords = p.MainWindowTitle.ToLower().Split(new char[] { ' ', '-', '_', ':', '.', '(', ')', '[', ']' },
-                                    StringSplitOptions.RemoveEmptyEntries);
-
-                                // Count how many words from the game name appear in the window title
-                                titleMatchScore = gameNameWords.Count(gameWord =>
-                                    windowTitleWords.Any(titleWord => titleWord.Contains(gameWord) || gameWord.Contains(titleWord)));
-                            }
-
-                            try
-                            {
-                                // Try to access the module info
-                                var modulePath = p.MainModule.FileName;
-                                if (modulePath.IndexOf(game.InstallDirectory, StringComparison.OrdinalIgnoreCase) >= 0)
-                                {
-                                    candidates.Add(p);
-                                }
-                                else if (nameMatches)
-                                {
-                                    // Path doesn't match but name does - this is a good candidate
-                                    nameMatchCandidates.Add(p);
-                                }
-                                else if (titleMatchScore > 0)
-                                {
-                                    // Window title matches game name
-                                    titleMatchCandidates.Add((p, titleMatchScore));
-                                }
-                            }
-                            catch
-                            {
-                                // Can't access module info (likely due to 32/64 bit mismatch)
-                                if (nameMatches)
-                                {
-                                    // Process name matches executable - higher priority
-                                    nameMatchCandidates.Add(p);
-                                }
-                                else if (titleMatchScore > 0)
-                                {
-                                    // Window title matches game name
-                                    titleMatchCandidates.Add((p, titleMatchScore));
-                                }
-                                else
-                                {
-                                    // No name match, but memory usage matches
-                                    inaccessibleCandidates.Add(p);
-                                }
-                            }
-                        }
-                    }
-                    catch { /* Skip processes we can't access at all */ }
-                }
-
-                // Priority order: direct path match, window title match, process name match, then best guess
-                if (candidates.Count > 0)
-                {
-                    var bestMatch = candidates.OrderByDescending(p => p.WorkingSet64).First();
-                    logger.Debug($"Found process with matching path: {bestMatch.ProcessName} (ID: {bestMatch.Id})");
-                    return bestMatch;
-                }
-
-                if (titleMatchCandidates.Count > 0)
-                {
-                    // Get the process with the highest title match score
-                    var bestMatch = titleMatchCandidates.OrderByDescending(t => t.MatchCount)
-                                                        .ThenByDescending(t => t.Process.WorkingSet64)
-                                                        .First().Process;
-                    logger.Debug($"Found process with matching window title: {bestMatch.ProcessName} (ID: {bestMatch.Id}, Title: {bestMatch.MainWindowTitle})");
-                    return bestMatch;
-                }
-
-                if (nameMatchCandidates.Count > 0)
-                {
-                    var bestMatch = nameMatchCandidates.OrderByDescending(p => p.WorkingSet64).First();
-                    logger.Debug($"Found process with matching name: {bestMatch.ProcessName} (ID: {bestMatch.Id})");
-                    return bestMatch;
-                }
-
-                if (inaccessibleCandidates.Count > 0)
-                {
-                    var bestGuess = inaccessibleCandidates.OrderByDescending(p => p.WorkingSet64).First();
-                    logger.Debug($"Using best guess process: {bestGuess.ProcessName} (ID: {bestGuess.Id})");
-                    return bestGuess;
+                    processTree.Add(rootProcess);
+                    logger.Debug($"Added root process: {rootProcess.ProcessName} (ID: {rootProcess.Id})");
                 }
             }
             catch (Exception ex)
             {
-                logger.Error($"Error finding game process: {ex.Message}");
+                logger.Warn($"Could not find root process with ID {rootPid}: {ex.Message}");
+            }
+
+            // Get all child processes recursively
+            var allProcesses = Process.GetProcesses();
+            var processesById = allProcesses.ToDictionary(p => p.Id, p => p);
+            var childProcesses = GetChildProcesses(rootPid.Value, processesById);
+
+            processTree.AddRange(childProcesses);
+
+            logger.Debug($"Process tree built with {processTree.Count} total processes");
+            return processTree;
+        }
+
+        private static List<Process> GetChildProcesses(int parentId, Dictionary<int, Process> processesById)
+        {
+            var children = new List<Process>();
+
+            try
+            {
+                // Use P/Invoke to get child processes via Windows API
+                foreach (var process in processesById.Values)
+                {
+                    try
+                    {
+                        if (!process.HasExited && GetParentProcessId(process.Id) == parentId)
+                        {
+                            children.Add(process);
+                            logger.Debug($"Added child process: {process.ProcessName} (ID: {process.Id})");
+
+                            // Recursively get grandchildren
+                            children.AddRange(GetChildProcesses(process.Id, processesById));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Debug($"Error checking process {process.Id}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Debug($"Error getting child processes for PID {parentId}: {ex.Message}");
+            }
+
+            return children;
+        }
+
+        private static int GetParentProcessId(int processId)
+        {
+            try
+            {
+                var handle = OpenProcess(ProcessAccessFlags.QueryInformation, false, processId);
+                if (handle == IntPtr.Zero)
+                    return -1;
+
+                try
+                {
+                    var pbi = new PROCESS_BASIC_INFORMATION();
+                    int returnLength;
+                    int status = NtQueryInformationProcess(handle, 0, ref pbi, Marshal.SizeOf(pbi), out returnLength);
+
+                    if (status == 0)
+                        return pbi.InheritedFromUniqueProcessId.ToInt32();
+                }
+                finally
+                {
+                    CloseHandle(handle);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Debug($"Error getting parent PID for process {processId}: {ex.Message}");
+            }
+
+            return -1;
+        }
+
+        private static List<string> GetGameExecutables(Game game)
+        {
+            var gameExecutables = new List<string>();
+            try
+            {
+                gameExecutables = Directory.GetFiles(game.InstallDirectory, "*.exe", SearchOption.AllDirectories)
+                    .Select(path => Path.GetFileNameWithoutExtension(path))
+                    .ToList();
+
+                // Add common variations
+                var additionalNames = new List<string>();
+                foreach (var exe in gameExecutables)
+                {
+                    additionalNames.Add(exe.Replace("-", ""));
+                    additionalNames.Add(exe.Replace("_", ""));
+                    additionalNames.Add(exe.Replace(" ", ""));
+                    additionalNames.Add(exe.Replace("-", " "));
+                    additionalNames.Add(exe.Replace("_", " "));
+                }
+                gameExecutables.AddRange(additionalNames);
+
+                logger.Debug($"Found {gameExecutables.Count} potential game executables in {game.InstallDirectory}");
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"Error scanning game directory: {ex.Message}");
+            }
+
+            return gameExecutables;
+        }
+
+        private static int CalculateTitleMatchScore(Process process, string[] gameNameWords)
+        {
+            if (process.MainWindowHandle == IntPtr.Zero || string.IsNullOrEmpty(process.MainWindowTitle))
+                return 0;
+
+            string[] windowTitleWords = process.MainWindowTitle.ToLower().Split(
+                new char[] { ' ', '-', '_', ':', '.', '(', ')', '[', ']' },
+                StringSplitOptions.RemoveEmptyEntries);
+
+            return gameNameWords.Count(gameWord =>
+                windowTitleWords.Any(titleWord => titleWord.Contains(gameWord) || gameWord.Contains(titleWord)));
+        }
+
+        private static Process FindBestMatch(
+            List<Process> candidates,
+            List<(Process Process, int MatchCount)> titleMatchCandidates,
+            List<Process> nameMatchCandidates,
+            List<Process> inaccessibleCandidates,
+            int? originalPid)
+        {
+            if (candidates.Count > 0)
+            {
+                var bestMatch = candidates.OrderByDescending(p => p.WorkingSet64).First();
+                logger.Debug($"Found process with matching path: {bestMatch.ProcessName} (ID: {bestMatch.Id})");
+                return bestMatch;
+            }
+
+            if (titleMatchCandidates.Count > 0)
+            {
+                var bestMatch = titleMatchCandidates.OrderByDescending(t => t.MatchCount)
+                                                    .ThenByDescending(t => t.Process.WorkingSet64)
+                                                    .First().Process;
+                logger.Debug($"Found process with matching window title: {bestMatch.ProcessName} (ID: {bestMatch.Id}, Title: {bestMatch.MainWindowTitle})");
+                return bestMatch;
+            }
+
+            if (nameMatchCandidates.Count > 0)
+            {
+                var bestMatch = nameMatchCandidates.OrderByDescending(p => p.WorkingSet64).First();
+                logger.Debug($"Found process with matching name: {bestMatch.ProcessName} (ID: {bestMatch.Id})");
+                return bestMatch;
+            }
+
+            if (inaccessibleCandidates.Count > 0)
+            {
+                var processFromPlaynite = inaccessibleCandidates.FirstOrDefault(p => p.Id == originalPid);
+                if (processFromPlaynite != null)
+                {
+                    logger.Debug($"Found original process in tree: {processFromPlaynite.ProcessName} (ID: {processFromPlaynite.Id})");
+                    return processFromPlaynite;
+                }
             }
 
             return null;
         }
-
         private static void ReturnToGame(NowPlayingData data)
         {
             GameStateManager.ReturnToGame(data);
@@ -376,6 +506,34 @@ namespace NowPlaying
             GameStateManager.CloseGame(data);
         }
 
+
+        // P/Invoke declarations
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr OpenProcess(ProcessAccessFlags processAccess, bool bInheritHandle, int processId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("ntdll.dll")]
+        private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass,
+            ref PROCESS_BASIC_INFORMATION processInformation, int processInformationLength, out int returnLength);
+
+        [Flags]
+        private enum ProcessAccessFlags : uint
+        {
+            QueryInformation = 0x00000400
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PROCESS_BASIC_INFORMATION
+        {
+            public IntPtr Reserved1;
+            public IntPtr PebBaseAddress;
+            public IntPtr Reserved2_0;
+            public IntPtr Reserved2_1;
+            public IntPtr UniqueProcessId;
+            public IntPtr InheritedFromUniqueProcessId;
+        }
 
     }
 
@@ -470,92 +628,7 @@ namespace NowPlaying
         public int ProcessId { get; set; }
         public string IconPath { get; set; }
         public string Id { get; set; }
+        public DateTime StartTime { get; set; } = DateTime.Now;
     }
 
-    public class StringMonitor
-    {
-        private string _currentData;
-        private readonly Func<string> _fetchData;
-        private readonly TimeSpan _pollingInterval;
-        private readonly IEqualityComparer<string> _comparer;
-        private Thread _monitorThread;
-        private bool _isRunning;
-
-        public event EventHandler<string> DataChanged;
-
-        public StringMonitor(
-            Func<string> fetchData,
-            TimeSpan pollingInterval,
-            IEqualityComparer<string> comparer = null)
-        {
-            _fetchData = fetchData;
-            _pollingInterval = pollingInterval;
-            _comparer = comparer ?? EqualityComparer<string>.Default;
-        }
-
-        public void StartMonitoring()
-        {
-            if (_isRunning)
-                return;
-
-            _isRunning = true;
-            _currentData = _fetchData();
-
-            // Raise initial data event
-            OnDataChanged(_currentData);
-
-            _monitorThread = new Thread(() =>
-            {
-                while (_isRunning)
-                {
-                    Thread.Sleep(_pollingInterval);
-
-                    try
-                    {
-                        var newData = _fetchData();
-
-                        // Check if data has changed
-                        if (_currentData != newData)
-                        {
-                            _currentData = newData;
-                            OnDataChanged(newData);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error fetching data: {ex.Message}");
-                    }
-                }
-            });
-
-            _monitorThread.IsBackground = true;
-            _monitorThread.Start();
-        }
-
-        public void StopMonitoring()
-        {
-            _isRunning = false;
-        }
-
-        protected virtual void OnDataChanged(string data)
-        {
-            DataChanged?.Invoke(this, data);
-        }
-    }
-
-    public class EqualityConverter : IMultiValueConverter
-    {
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (values == null || values.Length != 2)
-                return false;
-
-            return Equals(values[0], values[1]);
-        }
-
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
-    }
 }
