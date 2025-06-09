@@ -129,5 +129,15 @@ The Commands `ReturnToGame` and `CloseGame` will let you directly resume or exit
   Exit
 </ButtonEx>
 ```
+
+## Bindings
+|Path|Type|Data|Notes|
+|---|---|----|---|
+|`OpenDialog`|Command|-|Opens the Now Playing dialog|
+|`ReturnToGame`|Command|-|Directly return to the currently running game|
+|`CloseGame`|Command|-|Directly close the currently running game|
+|`IsGameRunning`|Boolean|`true` if a game is currently running, `false` otherwise|Used to conditionally show buttons based on a game being run|
+|`RunningGame.IconPath`|String|The full URI of the currently Running Game's Icon| For visual context for whatever the currently running Game is|
+|`RunningGame.GameName`|String|The full Name of the currently running Game | For display of the currently running game |
 ---
 # Special Thanks to MikeAniki and V for helping out with the testing and implementation details
