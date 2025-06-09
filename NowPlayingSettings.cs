@@ -2,9 +2,7 @@
 using Playnite.SDK.Data;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Timers;
 using System.Windows.Input;
 
 namespace NowPlaying
@@ -16,12 +14,23 @@ namespace NowPlaying
         public ICommand ReturnToGame { get; set; }
         private NowPlayingData _runningGame;
 
+        private Timer _timer = new Timer(10000);
+
         // Property with notification
         public NowPlayingData RunningGame
         {
             get => _runningGame;
             set
             {
+                if (value != null)
+                {
+                    _timer.Start();
+                }
+                else
+                {
+                    _timer.Stop();
+                }
+
                 if (_runningGame != value)
                 {
                     _runningGame = value;
@@ -41,18 +50,29 @@ namespace NowPlaying
             }
         }
 
-        private bool _selectedGameRunning;
-        public bool IsSelectedGameRunning
+        private string _sessionLength = "0:00";
+        public string SessionLength
         {
-            get => _selectedGameRunning;
-            set
+            get => _sessionLength; set
             {
-                if (_selectedGameRunning!= value)
-                {
-                    _selectedGameRunning = value;
-                    OnPropertyChanged();
-                }
+                _sessionLength = value;
+                OnPropertyChanged();
             }
+        }
+
+        public NowPlayingSettings() {
+            _timer.Elapsed += (sender, e) =>
+            {
+                if (RunningGame != null)
+                {
+                    var duration = DateTime.Now - RunningGame.StartTime;
+                    SessionLength = duration.ToString(@"h\:mm");
+                } else
+                {
+                    _timer.Stop();
+                    SessionLength = "0:00";
+                }
+            };
         }
     }
 
