@@ -12,3 +12,10 @@ Packages:
     PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.2.0/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_2_0.pext
     Changelog:
       - Add buttons for exiting and resuming a game without a popup
+  - Version: 0.2.1
+    RequiredApiVersion: 6.11.0.0
+    ReleaseDate: 2025-06-09
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.2.1/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_2_1.pext
+    Changelog:
+      - Refine process tracking
+      - Add support for displaying game session time
