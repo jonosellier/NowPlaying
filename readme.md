@@ -12,6 +12,10 @@ You can actually use both! But this extension does 2 main things a little better
 	4. Ranking multiple process matches based on system resource usage and the strength of the heuristic matches
 2. You can exit your game directly from the NowPlaying window so any games that do not have good exiting functionality via a controller can still be exited easily
 
+## Supported Themes
+
+[See here](./supported-themes.md)
+
 ## Usage for theme Developers
 
 ### Minimal Usage
