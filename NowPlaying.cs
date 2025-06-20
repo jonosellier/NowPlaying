@@ -23,7 +23,7 @@ namespace NowPlaying
         private static readonly ILogger logger = LogManager.GetLogger();
 
         public IPlayniteAPI Api { get; }
-        public NowPlayingSettingsViewModel settings { get; set; }
+        public NowPlayingSettings settings { get; set; }
 
         public override Guid Id { get; } = Guid.Parse("db4e7ade-57fb-426c-8392-60e2347a0209");
 
@@ -40,7 +40,7 @@ namespace NowPlaying
                 {
                     _gameData = value;
                     OnPropertyChanged(nameof(GameData));
-                    settings.Settings.RunningGame = value;
+                    settings.RunningGame = value;
                 }
             }
         }
@@ -63,7 +63,7 @@ namespace NowPlaying
         public NowPlaying(IPlayniteAPI api) : base(api)
         {
             Api = api;
-            settings = new NowPlayingSettingsViewModel(this);
+            settings = new NowPlayingSettings(this);
             Properties = new GenericPluginProperties
             {
                 HasSettings = true
@@ -72,13 +72,13 @@ namespace NowPlaying
             LaunchCommand = new RelayCommand(() => ExecuteShowDialog(api));
             ReturnCommand = new RelayCommand(() => ExecuteReturnToGame(api));
             ExitCommand = new RelayCommand(() => ExecuteCloseGame(api));
-            settings.Settings.OpenDialog = LaunchCommand;
-            settings.Settings.CloseGame = ExitCommand;
-            settings.Settings.ReturnToGame = ReturnCommand;
+            settings.OpenDialog = (RelayCommand)LaunchCommand;
+            settings.CloseGame = (RelayCommand)ExitCommand;
+            settings.ReturnToGame = (RelayCommand)ReturnCommand;
             AddSettingsSupport(new AddSettingsSupportArgs
             {
                 SourceName = "NowPlaying",
-                SettingsRoot = $"settings.Settings"
+                SettingsRoot = $"settings"
             });
         }
 
@@ -464,7 +464,15 @@ namespace NowPlaying
             if (candidates.Count > 0)
             {
                 var bestMatch = candidates.OrderByDescending(p => p.WorkingSet64).First();
-                logger.Debug($"Found process with matching path: {bestMatch.ProcessName} (ID: {bestMatch.Id})");
+                Debug.WriteLine($"Found process with matching path: {bestMatch.ProcessName} (ID: {bestMatch.Id})");
+                return bestMatch;
+            }
+
+
+            if (nameMatchCandidates.Count > 0)
+            {
+                var bestMatch = nameMatchCandidates.OrderByDescending(p => p.WorkingSet64).First();
+                Debug.WriteLine($"Found process with matching name: {bestMatch.ProcessName} (ID: {bestMatch.Id})");
                 return bestMatch;
             }
 
@@ -473,14 +481,7 @@ namespace NowPlaying
                 var bestMatch = titleMatchCandidates.OrderByDescending(t => t.MatchCount)
                                                     .ThenByDescending(t => t.Process.WorkingSet64)
                                                     .First().Process;
-                logger.Debug($"Found process with matching window title: {bestMatch.ProcessName} (ID: {bestMatch.Id}, Title: {bestMatch.MainWindowTitle})");
-                return bestMatch;
-            }
-
-            if (nameMatchCandidates.Count > 0)
-            {
-                var bestMatch = nameMatchCandidates.OrderByDescending(p => p.WorkingSet64).First();
-                logger.Debug($"Found process with matching name: {bestMatch.ProcessName} (ID: {bestMatch.Id})");
+                Debug.WriteLine($"Found process with matching window title: {bestMatch.ProcessName} (ID: {bestMatch.Id}, Title: {bestMatch.MainWindowTitle})");
                 return bestMatch;
             }
 
@@ -489,13 +490,14 @@ namespace NowPlaying
                 var processFromPlaynite = inaccessibleCandidates.FirstOrDefault(p => p.Id == originalPid);
                 if (processFromPlaynite != null)
                 {
-                    logger.Debug($"Found original process in tree: {processFromPlaynite.ProcessName} (ID: {processFromPlaynite.Id})");
+                    Debug.WriteLine($"Found original process in tree: {processFromPlaynite.ProcessName} (ID: {processFromPlaynite.Id})");
                     return processFromPlaynite;
                 }
             }
 
             return null;
         }
+
         private static void ReturnToGame(NowPlayingData data)
         {
             GameStateManager.ReturnToGame(data);

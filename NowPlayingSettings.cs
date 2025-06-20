@@ -2,21 +2,92 @@
 using Playnite.SDK.Data;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Timers;
 using System.Windows.Input;
 
 namespace NowPlaying
 {
-    public class NowPlayingSettings : ObservableObject
+    public class NowPlayingSettings : ObservableObject, ISettings
     {
-        public ICommand OpenDialog { get; set; }
-        public ICommand CloseGame { get; set; }
-        public ICommand ReturnToGame { get; set; }
+        private readonly NowPlaying plugin;
+
+        // Only this property will be serialized and saved
+        private CloseBehavior _closeBehavior = CloseBehavior.CloseAndEnd;
+        public CloseBehavior CloseBehavior
+        {
+            get => _closeBehavior;
+            set => SetValue(ref _closeBehavior, value);
+        }
+
+        // Backup for cancel functionality
+        private CloseBehavior _closeBehaviorBackup;
+
+        // Parameterless constructor required for LoadPluginSettings
+        public NowPlayingSettings()
+        {
+            InitializeRuntimeProperties();
+        }
+
+        public NowPlayingSettings(NowPlaying plugin)
+        {
+            this.plugin = plugin;
+            InitializeRuntimeProperties();
+
+            try
+            {
+                // Load saved settings
+                var savedSettings = plugin.LoadPluginSettings<NowPlayingSettings>();
+                if (savedSettings != null)
+                {
+                    CloseBehavior = savedSettings.CloseBehavior;
+                }
+            }
+            catch (Exception ex)
+            {
+                // If loading fails (e.g., due to old incompatible settings), use defaults
+                // Log the error if you have logging available
+                // plugin.Logger?.Error(ex, "Failed to load settings, using defaults");
+                CloseBehavior = CloseBehavior.CloseAndEnd;
+            }
+        }
+
+        private void InitializeRuntimeProperties()
+        {
+            // Initialize all runtime properties that shouldn't be serialized
+            _timer = new Timer(10000);
+            _timer.Elapsed += (sender, e) =>
+            {
+                if (RunningGame != null)
+                {
+                    var duration = DateTime.Now - RunningGame.StartTime;
+                    SessionLength = duration.ToString(@"h\:mm");
+                }
+                else
+                {
+                    _timer.Stop();
+                    SessionLength = "0:00";
+                }
+            };
+        }
+
+        #region Runtime Properties (Not Serialized)
+
+        private Timer _timer;
         private NowPlayingData _runningGame;
+        private bool _isGameRunning = false;
+        private string _sessionLength = "0:00";
 
-        private Timer _timer = new Timer(10000);
+        [DontSerialize]
+        public RelayCommand OpenDialog { get; set; }
 
-        // Property with notification
+        [DontSerialize]
+        public RelayCommand CloseGame { get; set; }
+
+        [DontSerialize]
+        public RelayCommand ReturnToGame { get; set; }
+
+        [DontSerialize]
         public NowPlayingData RunningGame
         {
             get => _runningGame;
@@ -24,11 +95,11 @@ namespace NowPlaying
             {
                 if (value != null)
                 {
-                    _timer.Start();
+                    _timer?.Start();
                 }
                 else
                 {
-                    _timer.Stop();
+                    _timer?.Stop();
                 }
 
                 if (_runningGame != value)
@@ -40,104 +111,61 @@ namespace NowPlaying
             }
         }
 
-        private bool _isGameRunning = false;
+        [DontSerialize]
         public bool IsGameRunning
         {
-            get => _isGameRunning; set
+            get => _isGameRunning;
+            set
             {
                 _isGameRunning = value;
                 OnPropertyChanged();
             }
         }
 
-        private string _sessionLength = "0:00";
+        [DontSerialize]
         public string SessionLength
         {
-            get => _sessionLength; set
+            get => _sessionLength;
+            set
             {
                 _sessionLength = value;
                 OnPropertyChanged();
             }
         }
 
-        public NowPlayingSettings() {
-            _timer.Elapsed += (sender, e) =>
-            {
-                if (RunningGame != null)
-                {
-                    var duration = DateTime.Now - RunningGame.StartTime;
-                    SessionLength = duration.ToString(@"h\:mm");
-                } else
-                {
-                    _timer.Stop();
-                    SessionLength = "0:00";
-                }
-            };
-        }
-    }
-
-    public class NowPlayingSettingsViewModel : ObservableObject, ISettings
-    {
-        private readonly NowPlaying plugin;
-        private NowPlayingSettings editingClone { get; set; }
-
-        private NowPlayingSettings settings;
-        public NowPlayingSettings Settings
-        {
-            get => settings;
-            set
-            {
-                settings = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public NowPlayingSettingsViewModel(NowPlaying plugin)
-        {
-            // Injecting your plugin instance is required for Save/Load method because Playnite saves data to a location based on what plugin requested the operation.
-            this.plugin = plugin;
-
-            // Load saved settings.
-            var savedSettings = plugin.LoadPluginSettings<NowPlayingSettings>();
-
-            // LoadPluginSettings returns null if no saved data is available.
-            if (savedSettings != null)
-            {
-                Settings = savedSettings;
-            }
-            else
-            {
-                Settings = new NowPlayingSettings();
-            }
-        }
+        #endregion
 
         public void BeginEdit()
         {
-            // Code executed when settings view is opened and user starts editing values.
-            editingClone = Serialization.GetClone(Settings);
+            _closeBehaviorBackup = CloseBehavior;
         }
 
         public void CancelEdit()
         {
-            // Code executed when user decides to cancel any changes made since BeginEdit was called.
-            // This method should revert any changes made to Option1 and Option2.
-            Settings = editingClone;
+            CloseBehavior = _closeBehaviorBackup;
         }
 
         public void EndEdit()
         {
-            // Code executed when user decides to confirm changes made since BeginEdit was called.
-            // This method should save settings made to Option1 and Option2.
-            plugin.SavePluginSettings(Settings);
+            plugin?.SavePluginSettings(this);
         }
 
         public bool VerifySettings(out List<string> errors)
         {
-            // Code execute when user decides to confirm changes made since BeginEdit was called.
-            // Executed before EndEdit is called and EndEdit is not called if false is returned.
-            // List of errors is presented to user if verification fails.
             errors = new List<string>();
             return true;
         }
+    }
+
+    public enum CloseBehavior
+    {
+        [Description("Close Window (asking)")]
+        CloseWindow,
+
+        [Description("End Task (telling)")]
+        EndTask,
+
+        [Description("Close then End Task")]
+        CloseAndEnd
     }
 }

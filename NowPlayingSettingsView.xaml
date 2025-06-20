@@ -3,12 +3,40 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:NowPlaying"
              mc:Ignorable="d"
              d:DesignHeight="400" d:DesignWidth="600">
-    <StackPanel>
-        <TextBlock Text="Description for Option1:"/>
-        <TextBox Text="{Binding Settings.Option1}"/>
-        <TextBlock Text="Description for Option2:"/>
-        <CheckBox IsChecked="{Binding Settings.Option2}"/>
+
+    <UserControl.Resources>
+        <local:EnumDescriptionConverter x:Key="EnumDescriptionConverter"/>
+
+        <ObjectDataProvider x:Key="CloseBehaviorValues" 
+                            MethodName="GetValues" 
+                            ObjectType="{x:Type local:CloseBehavior}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="local:CloseBehavior"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </UserControl.Resources>
+
+    <StackPanel Margin="20">
+        <TextBlock Text="Close Game Behavior:" 
+                   FontWeight="Bold" 
+                   Margin="0,0,0,5"/>
+
+        <TextBlock Text="Choose how the plugin should handle closing games:" 
+                   Margin="0,0,0,10"
+                   TextWrapping="Wrap"/>
+
+        <ComboBox ItemsSource="{Binding Source={StaticResource CloseBehaviorValues}}"
+                  SelectedItem="{Binding CloseBehavior}"
+                  Width="300"
+                  HorizontalAlignment="Left">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/>
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
     </StackPanel>
 </UserControl>
