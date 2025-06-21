@@ -19,3 +19,10 @@ Packages:
     Changelog:
       - Refine process tracking
       - Add support for displaying game session time
+  - Version: 0.3.1
+    RequiredApiVersion: 6.11.0.0
+    ReleaseDate: 2025-06-21
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.3.1/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_3_1.pext
+    Changelog:
+      - Change process heuristics to prioritize process name over window title matches
+      - Add settings to choose how a game exits
