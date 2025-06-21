@@ -12,7 +12,7 @@ namespace NowPlaying
     {
         private readonly NowPlaying plugin;
 
-        // Only this property will be serialized and saved
+        // Only these properties will be serialized and saved
         private CloseBehavior _closeBehavior = CloseBehavior.CloseAndEnd;
         public CloseBehavior CloseBehavior
         {
@@ -20,8 +20,16 @@ namespace NowPlaying
             set => SetValue(ref _closeBehavior, value);
         }
 
-        // Backup for cancel functionality
+        private bool _confirmClose = false;
+        public bool ConfirmClose
+        {
+            get => _confirmClose;
+            set => SetValue(ref _confirmClose, value);
+        }
+
+        // Backups for cancel functionality
         private CloseBehavior _closeBehaviorBackup;
+        private bool _confirmCloseBackup;
 
         // Parameterless constructor required for LoadPluginSettings
         public NowPlayingSettings()
@@ -41,14 +49,17 @@ namespace NowPlaying
                 if (savedSettings != null)
                 {
                     CloseBehavior = savedSettings.CloseBehavior;
+                    if(savedSettings.ConfirmClose != null)
+                    {
+                        ConfirmClose = savedSettings.ConfirmClose;
+                    }
                 }
             }
             catch (Exception ex)
             {
                 // If loading fails (e.g., due to old incompatible settings), use defaults
-                // Log the error if you have logging available
-                // plugin.Logger?.Error(ex, "Failed to load settings, using defaults");
                 CloseBehavior = CloseBehavior.CloseAndEnd;
+                ConfirmClose = false;
             }
         }
 

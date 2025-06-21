@@ -38,5 +38,9 @@
                 </DataTemplate>
             </ComboBox.ItemTemplate>
         </ComboBox>
+        <CheckBox IsChecked="{Binding ConfirmClose}"
+          Content="Confirm before closing games"
+          Margin="0,20,0,5"/>
+
     </StackPanel>
 </UserControl>
