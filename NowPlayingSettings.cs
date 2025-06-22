@@ -88,6 +88,7 @@ namespace NowPlaying
         private NowPlayingData _runningGame;
         private bool _isGameRunning = false;
         private string _sessionLength = "0:00";
+        private bool _gameClosing;
 
         [DontSerialize]
         public RelayCommand OpenDialog { get; set; }
@@ -119,6 +120,17 @@ namespace NowPlaying
                     IsGameRunning = _runningGame != null;
                     OnPropertyChanged();
                 }
+            }
+        }
+
+        [DontSerialize]
+        public bool GameClosing
+        {
+            get => _gameClosing;
+            set
+            {
+                _gameClosing = value;
+                OnPropertyChanged();
             }
         }
 

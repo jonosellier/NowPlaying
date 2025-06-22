@@ -112,6 +112,7 @@ namespace NowPlaying
 
         public override void OnGameStopped(OnGameStoppedEventArgs args)
         {
+            settings.GameClosing = false; // Reset the closing flag
             GameData = null;
         }
 
@@ -511,13 +512,14 @@ namespace NowPlaying
                 var yesBtn = new MessageBoxOption("Close", true, false);
                 var noBtn = new MessageBoxOption("Cancel", false, true);
 
-                var response = instance.Api.Dialogs.ShowMessage("", "Do you want to close "+data.GameName+"?", MessageBoxImage.None, new List<MessageBoxOption>
-            {
-                yesBtn, noBtn
-            });
-                if (response.Title == "Close") GameStateManager.CloseGame(data, instance.settings.CloseBehavior);
+                var response = instance.Api.Dialogs.ShowMessage("", "Do you want to close "+data.GameName+"?", MessageBoxImage.None, new List<MessageBoxOption>{ yesBtn, noBtn });
+                if (response.Title == "Close") {
+                    instance.settings.GameClosing = true; // Set the closing flag to true
+                    GameStateManager.CloseGame(data, instance.settings.CloseBehavior);
+                }
             } else
             {
+                instance.settings.GameClosing = true; // Set the closing flag to true
                 GameStateManager.CloseGame(data, instance.settings.CloseBehavior);
             }
         }
@@ -596,7 +598,6 @@ namespace NowPlaying
             {
                 return;
             }
-
             var success = proc.CloseMainWindow();
             switch (behavior)
             {
