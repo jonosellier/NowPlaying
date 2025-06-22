@@ -33,3 +33,9 @@ Packages:
     Changelog:
       - Add setting to confirm before exiting a process
       - Wait 3 seconds for graceful exit before killing process by default
+  - Version: 0.3.3
+    RequiredApiVersion: 6.11.0.0
+    ReleaseDate: 2025-06-22
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.3.3/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_3_3.pext
+    Changelog:
+      - Add new binding `GameClosing`
