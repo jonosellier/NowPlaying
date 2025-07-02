@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Timers;
-using System.Windows.Input;
 
 namespace NowPlaying
 {
@@ -13,6 +12,20 @@ namespace NowPlaying
         private readonly NowPlaying plugin;
 
         // Only these properties will be serialized and saved
+        private bool _openWithKeyboardShortcut = true;
+        public bool OpenWithKeyboardShortcut
+        {
+            get => _openWithKeyboardShortcut;
+            set => SetValue(ref _openWithKeyboardShortcut, value);
+        }
+
+        public bool _openWithGuideButton = false;
+        public bool OpenWithGuideButton
+        {
+            get => _openWithGuideButton;
+            set => SetValue(ref _openWithGuideButton, value);
+        }
+
         private CloseBehavior _closeBehavior = CloseBehavior.CloseAndEnd;
         public CloseBehavior CloseBehavior
         {
@@ -53,6 +66,16 @@ namespace NowPlaying
                     {
                         ConfirmClose = savedSettings.ConfirmClose;
                     }
+
+                    if(savedSettings.OpenWithKeyboardShortcut != null)
+                    {
+                        OpenWithKeyboardShortcut = savedSettings.OpenWithKeyboardShortcut;
+                    }
+
+                    if(savedSettings.OpenWithGuideButton != null)
+                    {
+                        OpenWithGuideButton = savedSettings.OpenWithGuideButton;
+                    }
                 }
             }
             catch (Exception ex)
@@ -60,6 +83,8 @@ namespace NowPlaying
                 // If loading fails (e.g., due to old incompatible settings), use defaults
                 CloseBehavior = CloseBehavior.CloseAndEnd;
                 ConfirmClose = false;
+                OpenWithKeyboardShortcut = true;
+                OpenWithGuideButton = false;
             }
         }
 

@@ -1,7 +1,7 @@
 ﻿Id: NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209
 Name: Now Playing
 Author: JonoSellier
-Version: 0.3.3
+Version: 0.3.4
 Module: NowPlaying.dll
 Type: GenericPlugin
 Icon: icon.png

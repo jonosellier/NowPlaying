@@ -41,6 +41,12 @@
         <CheckBox IsChecked="{Binding ConfirmClose}"
           Content="Confirm before closing games"
           Margin="0,20,0,5"/>
+        <CheckBox IsChecked="{Binding OpenWithGuideButton}"
+          Content="Override Playnite setting: Focus Playnite with Guide Button"
+          Margin="0,20,0,5"/>
+        <CheckBox IsChecked="{Binding OpenWithKeybardShortcut}"
+          Content="Focus Playnite with Alt+`"
+          Margin="0,20,0,5"/>
 
     </StackPanel>
 </UserControl>

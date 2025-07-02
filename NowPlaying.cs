@@ -7,7 +7,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
+using System.Windows.Forms;
 using System.Windows.Input;
 using Playnite.SDK;
 using Playnite.SDK.Events;
@@ -50,6 +50,7 @@ namespace NowPlaying
         public ICommand LaunchCommand;
         public ICommand ReturnCommand;
         public ICommand ExitCommand;
+        private GlobalKeyboardHook keyboardHook;
 
         private static void ExecuteShowDialog(NowPlaying instance)
         {
@@ -81,6 +82,10 @@ namespace NowPlaying
                 SourceName = "NowPlaying",
                 SettingsRoot = $"settings"
             });
+
+            // Initialize global keyboard hook
+            keyboardHook = new GlobalKeyboardHook();
+            keyboardHook.KeyPressed += OnKeyPressed;
         }
 
         public static void ExecuteReturnToGame(IPlayniteAPI api)
@@ -136,15 +141,52 @@ namespace NowPlaying
             // Add code to be executed when library is updated.
         }
 
+        public override void OnControllerButtonStateChanged(OnControllerButtonStateChangedArgs args)
+        {
+            Debug.WriteLine($"Button {args.Button} ${args.State}");
+            if(settings.OpenWithGuideButton && args.Button == ControllerInput.Guide && args.State == ControllerInputState.Pressed)
+            {
+                ShowPlaynite();
+            }
+        }
+
         public override ISettings GetSettings(bool firstRunSettings)
         {
             return settings; 
         }
 
-        public override UserControl GetSettingsView(bool firstRunSettings)
+        public override System.Windows.Controls.UserControl GetSettingsView(bool firstRunSettings)
         {
             return new NowPlayingSettingsView();
         }
+
+        private void ShowPlaynite()
+        {
+            Debug.WriteLine("Trying to show playnite");
+            try
+            {
+                var processes = Process.GetProcessesByName("Playnite.FullscreenApp");
+                if (processes.Length > 0)
+                {
+                    Process.Start(Path.Combine(Api.Paths.ApplicationPath, "Playnite.FullscreenApp.exe"));
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"Error showing Playnite: {ex}");
+            }
+        }
+
+        private void OnKeyPressed(Keys key, bool altPressed)
+        {
+            // Alt + ` (backtick) to focus playnite
+            if (settings.OpenWithKeyboardShortcut && altPressed && key == Keys.Oem3)
+            {
+                ShowPlaynite();
+            }
+        }
+
 
         public static void ShowNowPlayingDialog(NowPlaying instance)
         {
