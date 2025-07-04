@@ -1,12 +1,12 @@
 # Themes that support Now Playing
 
-## Jono's ReMix
+## Toggle
 
-![](https://raw.githubusercontent.com/jonosellier/ReMiX_jonosellier/refs/heads/main/images/img3.png)
-![](https://raw.githubusercontent.com/jonosellier/ReMiX_jonosellier/refs/heads/main/images/img4.png)
+![](https://github.com/jonosellier/toggle-theme-playnite/raw/main/screenshots/game-details-running.png)
+![](https://github.com/jonosellier/toggle-theme-playnite/raw/main/screenshots/home-now-playing.png)
 
-|[More Info](https://playnite.link/addons.html#ReMiX_jonosellier)|
-|----------------------------------------------------------------| 
+|[More Info](https://playnite.link/addons.html#Toggle_28b7d2c0-105b-4632-8dca-d11348bd61d2)|
+|---|
 
 ## Aniki Remake
 
@@ -22,6 +22,14 @@
 [More Info](https://playnite.link/addons.html#PS5reborn_saVantCZ)|
 |---| 
 
+## Jono's ReMix
+
+![](https://raw.githubusercontent.com/jonosellier/ReMiX_jonosellier/refs/heads/main/images/img3.png)
+![](https://raw.githubusercontent.com/jonosellier/ReMiX_jonosellier/refs/heads/main/images/img4.png)
+
+|[More Info](https://playnite.link/addons.html#ReMiX_jonosellier)|
+|----------------------------------------------------------------| 
+
 ---
 **Want your theme added?** Open a PR appending this file with your theme in this format:
 
@@ -30,6 +38,6 @@
 
 ![](images/screenshot-showing-now-playing.png)
 
-|[Install](playnite://playnite/installaddon/{theme_id})|[More Info](https://playnite.link/addons.html#{theme_id})|
-|------------------------------------------------------|---------------------------------------------------------| 
+|[More Info](https://playnite.link/addons.html#{theme_id})|
+|---------------------------------------------------------| 
 ```
