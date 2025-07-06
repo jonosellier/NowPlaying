@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Timers;
+using System.Windows.Input;
 
 namespace NowPlaying
 {
@@ -62,17 +63,17 @@ namespace NowPlaying
                 if (savedSettings != null)
                 {
                     CloseBehavior = savedSettings.CloseBehavior;
-                    if(savedSettings.ConfirmClose != null)
+                    if (savedSettings.ConfirmClose != null)
                     {
                         ConfirmClose = savedSettings.ConfirmClose;
                     }
 
-                    if(savedSettings.OpenWithKeyboardShortcut != null)
+                    if (savedSettings.OpenWithKeyboardShortcut != null)
                     {
                         OpenWithKeyboardShortcut = savedSettings.OpenWithKeyboardShortcut;
                     }
 
-                    if(savedSettings.OpenWithGuideButton != null)
+                    if (savedSettings.OpenWithGuideButton != null)
                     {
                         OpenWithGuideButton = savedSettings.OpenWithGuideButton;
                     }
@@ -123,6 +124,9 @@ namespace NowPlaying
 
         [DontSerialize]
         public RelayCommand ReturnToGame { get; set; }
+
+        [DontSerialize]
+        public RelayCommand OpenCustomDialog { get; set; }
 
         [DontSerialize]
         public NowPlayingData RunningGame

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
+using System.Windows.Markup;
 using Playnite.SDK;
 using Playnite.SDK.Events;
 using Playnite.SDK.Models;
@@ -46,10 +47,13 @@ namespace NowPlaying
             }
         }
 
+        public static Window NowPlayingWindow { get; private set; }
 
         public ICommand LaunchCommand;
         public ICommand ReturnCommand;
         public ICommand ExitCommand;
+        public ICommand LaunchCustomWindowCommand;
+
         private GlobalKeyboardHook keyboardHook;
 
         private static void ExecuteShowDialog(NowPlaying instance)
@@ -74,9 +78,12 @@ namespace NowPlaying
             LaunchCommand = new RelayCommand(() => ExecuteShowDialog(this));
             ReturnCommand = new RelayCommand(() => ExecuteReturnToGame(api));
             ExitCommand = new RelayCommand(() => ExecuteCloseGame(this));
+            LaunchCustomWindowCommand = new RelayCommand(() => ShowNowPlayingWindow(api));
             settings.OpenDialog = (RelayCommand)LaunchCommand;
             settings.CloseGame = (RelayCommand)ExitCommand;
             settings.ReturnToGame = (RelayCommand)ReturnCommand;
+            settings.OpenCustomDialog = (RelayCommand)LaunchCustomWindowCommand;
+
             AddSettingsSupport(new AddSettingsSupportArgs
             {
                 SourceName = "NowPlaying",
@@ -121,38 +128,24 @@ namespace NowPlaying
             GameData = null;
         }
 
-        public override void OnGameUninstalled(OnGameUninstalledEventArgs args)
-        {
-            // Add code to be executed when game is uninstalled.
-        }
-
-        public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
-        {
-            // Add code to be executed when Playnite is initialized.
-        }
-
-        public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
-        {
-            // Add code to be executed when Playnite is shutting down.
-        }
-
-        public override void OnLibraryUpdated(OnLibraryUpdatedEventArgs args)
-        {
-            // Add code to be executed when library is updated.
-        }
-
         public override void OnControllerButtonStateChanged(OnControllerButtonStateChangedArgs args)
         {
             Debug.WriteLine($"Button {args.Button} ${args.State}");
-            if(settings.OpenWithGuideButton && args.Button == ControllerInput.Guide && args.State == ControllerInputState.Pressed)
+            if (settings.OpenWithGuideButton && args.Button == ControllerInput.Guide && args.State == ControllerInputState.Pressed)
             {
                 ShowPlaynite();
+            }
+
+            if (NowPlayingWindow != null && NowPlayingWindow.IsVisible && args.Button == ControllerInput.B && args.State == ControllerInputState.Pressed)
+            {
+                NowPlayingWindow.Close();
+                NowPlayingWindow = null;
             }
         }
 
         public override ISettings GetSettings(bool firstRunSettings)
         {
-            return settings; 
+            return settings;
         }
 
         public override System.Windows.Controls.UserControl GetSettingsView(bool firstRunSettings)
@@ -187,6 +180,47 @@ namespace NowPlaying
             }
         }
 
+        private static void ShowNowPlayingWindow(IPlayniteAPI api)
+        {
+            var parent = api.Dialogs.GetCurrentAppWindow();
+            NowPlayingWindow = api.Dialogs.CreateWindow(new WindowCreationOptions
+            {
+                ShowMinimizeButton = false
+            });
+
+            NowPlayingWindow.Height = parent.Height;
+            NowPlayingWindow.Width = parent.Width;
+            NowPlayingWindow.Title = "MoData";
+
+            string xamlString = @"
+            <Viewbox Stretch=""Uniform"" 
+                     xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation""
+                     xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml"">
+                <Grid Width=""1920"" Height=""1080"">
+                    <ContentControl x:Name=""NowPlayingWindow""
+                                    Focusable=""False""
+                                    Style=""{DynamicResource NowPlayingWindowStyle}"" />
+                </Grid>
+            </Viewbox>";
+
+            // Parse the XAML string
+            var element = (FrameworkElement)XamlReader.Parse(xamlString);
+
+
+            // Set content of a window. Can be loaded from xaml, loaded from UserControl or created from code behind
+            NowPlayingWindow.Content = element;
+
+            // Set data context if you want to use MVVM pattern
+            NowPlayingWindow.DataContext = parent.DataContext;
+
+            // Set owner if you need to create modal dialog window
+            NowPlayingWindow.Owner = parent;
+            NowPlayingWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+            // Use Show or ShowDialog to show the window
+            NowPlayingWindow.ShowDialog();
+        }
+
 
         public static void ShowNowPlayingDialog(NowPlaying instance)
         {
@@ -218,18 +252,35 @@ namespace NowPlaying
                 ProcessId = FindRunningGameProcess(game, processId)?.Id ?? processId ?? -1,
                 IconPath = GetFullIconPath(api, game),
                 Id = game.Id.ToString(),
-                StartTime = DateTime.Now
+                StartTime = DateTime.Now,
+                CoverPath = GetFullCoverPath(api, game)
             };
         }
 
         private static string GetFullIconPath(IPlayniteAPI api, Game game)
+        {
+            if (string.IsNullOrEmpty(game.Icon))
+                return null;
+
+            try
+            {
+                return api.Database.GetFullFilePath(game.Icon);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"Error getting cover image path: {ex}");
+                return null;
+            }
+        }
+
+        private static string GetFullCoverPath(IPlayniteAPI api, Game game)
         {
             if (string.IsNullOrEmpty(game.CoverImage))
                 return null;
 
             try
             {
-                return api.Database.GetFullFilePath(game.Icon);
+                return api.Database.GetFullFilePath(game.CoverImage);
             }
             catch (Exception ex)
             {
@@ -554,12 +605,14 @@ namespace NowPlaying
                 var yesBtn = new MessageBoxOption("Close", true, false);
                 var noBtn = new MessageBoxOption("Cancel", false, true);
 
-                var response = instance.Api.Dialogs.ShowMessage("", "Do you want to close "+data.GameName+"?", MessageBoxImage.None, new List<MessageBoxOption>{ yesBtn, noBtn });
-                if (response.Title == "Close") {
+                var response = instance.Api.Dialogs.ShowMessage("", "Do you want to close " + data.GameName + "?", MessageBoxImage.None, new List<MessageBoxOption> { yesBtn, noBtn });
+                if (response.Title == "Close")
+                {
                     instance.settings.GameClosing = true; // Set the closing flag to true
                     GameStateManager.CloseGame(data, instance.settings.CloseBehavior);
                 }
-            } else
+            }
+            else
             {
                 instance.settings.GameClosing = true; // Set the closing flag to true
                 GameStateManager.CloseGame(data, instance.settings.CloseBehavior);
@@ -632,8 +685,8 @@ namespace NowPlaying
         public static async void CloseGame(NowPlayingData gameData, CloseBehavior behavior = CloseBehavior.CloseAndEnd)
         {
             if (gameData == null)
-            { 
-                return; 
+            {
+                return;
             }
             var proc = FindProcessById(gameData.ProcessId);
             if (proc == null)
@@ -723,6 +776,7 @@ namespace NowPlaying
         public string GameName { get; set; }
         public int ProcessId { get; set; }
         public string IconPath { get; set; }
+        public string CoverPath { get; set; }
         public string Id { get; set; }
         public DateTime StartTime { get; set; } = DateTime.Now;
     }
