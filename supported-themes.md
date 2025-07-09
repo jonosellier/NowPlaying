@@ -30,6 +30,15 @@
 |[More Info](https://playnite.link/addons.html#ReMiX_jonosellier)|
 |----------------------------------------------------------------| 
 
+## Solaris
+
+![](images/solaris01.png)
+![](images/solaris02.png)
+![](images/solaris03.png)
+
+|[More Info](https://playnite.link/addons.html#Solaris_b6e50d04-24ae-4ecd-bd3a-080367930992)|
+|----------------------------------------------------------------| 
+
 ---
 **Want your theme added?** Open a PR appending this file with your theme in this format:
 
