@@ -97,12 +97,22 @@ namespace NowPlaying
 
         public static void ExecuteReturnToGame(IPlayniteAPI api)
         {
+            if (NowPlayingWindow != null && NowPlayingWindow.IsVisible)
+            {
+                NowPlayingWindow.Close();
+                NowPlayingWindow = null;
+            }
             var GameData = CreateNowPlayingData(api, api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
             ReturnToGame(GameData);
         }
 
         public static void ExecuteCloseGame(NowPlaying instance)
         {
+            if (NowPlayingWindow != null && NowPlayingWindow.IsVisible)
+            {
+                NowPlayingWindow.Close();
+                NowPlayingWindow = null;
+            }
             var GameData = CreateNowPlayingData(instance.Api, instance.Api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
             CloseGame(GameData, instance);
         }
@@ -126,6 +136,11 @@ namespace NowPlaying
         {
             settings.GameClosing = false; // Reset the closing flag
             GameData = null;
+            if (NowPlayingWindow != null && NowPlayingWindow.IsVisible)
+            {
+                NowPlayingWindow.Close();
+                NowPlayingWindow = null;
+            }
         }
 
         public override void OnControllerButtonStateChanged(OnControllerButtonStateChangedArgs args)
@@ -190,7 +205,7 @@ namespace NowPlaying
 
             NowPlayingWindow.Height = parent.Height;
             NowPlayingWindow.Width = parent.Width;
-            NowPlayingWindow.Title = "MoData";
+            NowPlayingWindow.Title = $"Manage Game Session";
 
             string xamlString = @"
             <Viewbox Stretch=""Uniform"" 

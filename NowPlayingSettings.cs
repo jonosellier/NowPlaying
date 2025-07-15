@@ -92,18 +92,18 @@ namespace NowPlaying
         private void InitializeRuntimeProperties()
         {
             // Initialize all runtime properties that shouldn't be serialized
-            _timer = new Timer(10000);
+            _timer = new Timer(500);
             _timer.Elapsed += (sender, e) =>
             {
                 if (RunningGame != null)
                 {
                     var duration = DateTime.Now - RunningGame.StartTime;
-                    SessionLength = duration.ToString(@"h\:mm");
+                    SessionLength = duration.ToString(@"h\:mm\:ss");
                 }
                 else
                 {
                     _timer.Stop();
-                    SessionLength = "0:00";
+                    SessionLength = "0:00:00";
                 }
             };
         }
