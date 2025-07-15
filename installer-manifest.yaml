@@ -45,3 +45,9 @@ Packages:
     PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.3.4/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_3_4.pext
     Changelog:
       - Add new setting to focus Playnite with Alt + ` or more aggressively focus with controller Guide button
+  - Version: 0.4.0
+    RequiredApiVersion: 6.12.0.0
+    ReleaseDate: 2025-07-15
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.4.0/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_4_0.pext
+    Changelog:
+      - Add support for custom Now Playing windows
