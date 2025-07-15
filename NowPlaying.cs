@@ -53,6 +53,7 @@ namespace NowPlaying
         public ICommand ReturnCommand;
         public ICommand ExitCommand;
         public ICommand LaunchCustomWindowCommand;
+        public ICommand CloseWindowCommand;
 
         private GlobalKeyboardHook keyboardHook;
 
@@ -79,10 +80,12 @@ namespace NowPlaying
             ReturnCommand = new RelayCommand(() => ExecuteReturnToGame(api));
             ExitCommand = new RelayCommand(() => ExecuteCloseGame(this));
             LaunchCustomWindowCommand = new RelayCommand(() => ShowNowPlayingWindow(api));
+            CloseWindowCommand = new RelayCommand(() => CloseNowPlayingDialog());
             settings.OpenDialog = (RelayCommand)LaunchCommand;
             settings.CloseGame = (RelayCommand)ExitCommand;
             settings.ReturnToGame = (RelayCommand)ReturnCommand;
             settings.OpenCustomDialog = (RelayCommand)LaunchCustomWindowCommand;
+            settings.CloseDialog = (RelayCommand)CloseWindowCommand;
 
             AddSettingsSupport(new AddSettingsSupportArgs
             {
@@ -97,24 +100,25 @@ namespace NowPlaying
 
         public static void ExecuteReturnToGame(IPlayniteAPI api)
         {
-            if (NowPlayingWindow != null && NowPlayingWindow.IsVisible)
-            {
-                NowPlayingWindow.Close();
-                NowPlayingWindow = null;
-            }
+            CloseNowPlayingDialog();
             var GameData = CreateNowPlayingData(api, api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
             ReturnToGame(GameData);
         }
 
         public static void ExecuteCloseGame(NowPlaying instance)
         {
+            CloseNowPlayingDialog();
+            var GameData = CreateNowPlayingData(instance.Api, instance.Api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
+            CloseGame(GameData, instance);
+        }
+
+        public static void CloseNowPlayingDialog()
+        {
             if (NowPlayingWindow != null && NowPlayingWindow.IsVisible)
             {
                 NowPlayingWindow.Close();
                 NowPlayingWindow = null;
             }
-            var GameData = CreateNowPlayingData(instance.Api, instance.Api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
-            CloseGame(GameData, instance);
         }
 
         public override void OnGameInstalled(OnGameInstalledEventArgs args)
@@ -136,11 +140,7 @@ namespace NowPlaying
         {
             settings.GameClosing = false; // Reset the closing flag
             GameData = null;
-            if (NowPlayingWindow != null && NowPlayingWindow.IsVisible)
-            {
-                NowPlayingWindow.Close();
-                NowPlayingWindow = null;
-            }
+            CloseNowPlayingDialog();
         }
 
         public override void OnControllerButtonStateChanged(OnControllerButtonStateChangedArgs args)
@@ -151,10 +151,9 @@ namespace NowPlaying
                 ShowPlaynite();
             }
 
-            if (NowPlayingWindow != null && NowPlayingWindow.IsVisible && args.Button == ControllerInput.B && args.State == ControllerInputState.Pressed)
+            if (args.Button == ControllerInput.B && args.State == ControllerInputState.Pressed)
             {
-                NowPlayingWindow.Close();
-                NowPlayingWindow = null;
+                CloseNowPlayingDialog();
             }
         }
 
@@ -192,6 +191,11 @@ namespace NowPlaying
             if (settings.OpenWithKeyboardShortcut && altPressed && key == Keys.Oem3)
             {
                 ShowPlaynite();
+            }
+
+            if(key == Keys.Escape)
+            {
+                CloseNowPlayingDialog();
             }
         }
 

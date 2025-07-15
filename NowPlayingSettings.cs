@@ -129,6 +129,9 @@ namespace NowPlaying
         public RelayCommand OpenCustomDialog { get; set; }
 
         [DontSerialize]
+        public RelayCommand CloseDialog { get; set; }
+
+        [DontSerialize]
         public NowPlayingData RunningGame
         {
             get => _runningGame;

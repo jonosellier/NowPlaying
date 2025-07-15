@@ -134,14 +134,39 @@ The Commands `ReturnToGame` and `CloseGame` will let you directly resume or exit
 </ButtonEx>
 ```
 
+## Custom Now Playing Dialog
+
+Instead of binding to `OpenDialog`, bind to `OpenCustomDialog` and add this style to your theme. You will have to implement all the buttons yourself using the bindings below.
+
+```xml
+<Style x:Key="NowPlayingWindowStyle" TargetType="ContentControl">
+  <Setter Property="Template">
+    <Setter.Value>
+      <ControlTemplate TargetType="ContentControl">
+          <Grid>
+              <Border
+                  Width="{WindowWidth}"
+                  Height="{WindowHeight}">
+                  <!-- Place your content here. Size and position the border for window positioning-->
+              </Border>
+          </Grid>
+      </ControlTemplate>
+    </Setter.Value>
+  </Setter>
+</Style>
+```
+
 ## Bindings
 |Path|Type|Data|Notes|
 |---|---|----|---|
 |`OpenDialog`|Command|-|Opens the Now Playing dialog|
+|`OpenCustomDialog`|Command|-|Opens the Now Playing custom dialog (see [Custom Now Playing Dialog](#custom-now-playing-dialog) for implementation)|
+|`CloseDialog`|Command|-|Closes the Now Playing custom dialog (see [Custom Now Playing Dialog](#custom-now-playing-dialog) for implementation)|
 |`ReturnToGame`|Command|-|Directly return to the currently running game|
 |`CloseGame`|Command|-|Directly close the currently running game|
 |`IsGameRunning`|Boolean|`true` if a game is currently running, `false` otherwise|Used to conditionally show buttons based on a game being run|
 |`RunningGame.IconPath`|String|The full URI of the currently Running Game's Icon| For visual context for whatever the currently running Game is|
+|`RunningGame.CoverPath`|String|The full URI of the currently Running Game's Cover| For visual context for whatever the currently running Game is|
 |`RunningGame.GameName`|String|The full Name of the currently running Game | For display of the currently running game |
 |`SessionLength`|String|The length of the current gaming session, expressed as `H:MM`| Updates every 10s. E.g. A session of length 123 minutes will be displayed as `2:03`.
 |`GameClosing`|Boolean|Set to `true` when a game is attempted to be closed. Will reset back to `false` once Playnite sees the game has closed| Can be used for notifying the user of the game being closed or handling optimistic updates.
