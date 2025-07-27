@@ -193,7 +193,7 @@ namespace NowPlaying
                 ShowPlaynite();
             }
 
-            if(key == Keys.Escape)
+            if (key == Keys.Escape)
             {
                 CloseNowPlayingDialog();
             }
@@ -272,7 +272,8 @@ namespace NowPlaying
                 IconPath = GetFullIconPath(api, game),
                 Id = game.Id.ToString(),
                 StartTime = DateTime.Now,
-                CoverPath = GetFullCoverPath(api, game)
+                CoverPath = GetFullCoverPath(api, game),
+                BackgroundPath = GetFullBackgroundPath(api, game)
             };
         }
 
@@ -304,6 +305,21 @@ namespace NowPlaying
             catch (Exception ex)
             {
                 logger.Error($"Error getting cover image path: {ex}");
+                return null;
+            }
+        }
+        private static string GetFullBackgroundPath(IPlayniteAPI api, Game game)
+        {
+            if (string.IsNullOrEmpty(game.BackgroundImage))
+                return null;
+
+            try
+            {
+                return api.Database.GetFullFilePath(game.BackgroundImage);
+            }
+            catch (Exception ex)
+            {
+                logger.Error($"Error getting bg image path: {ex}");
                 return null;
             }
         }
@@ -796,6 +812,7 @@ namespace NowPlaying
         public int ProcessId { get; set; }
         public string IconPath { get; set; }
         public string CoverPath { get; set; }
+        public string BackgroundPath { get; set; }
         public string Id { get; set; }
         public DateTime StartTime { get; set; } = DateTime.Now;
     }
