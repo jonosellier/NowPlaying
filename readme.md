@@ -167,6 +167,7 @@ Instead of binding to `OpenDialog`, bind to `OpenCustomDialog` and add this styl
 |`IsGameRunning`|Boolean|`true` if a game is currently running, `false` otherwise|Used to conditionally show buttons based on a game being run|
 |`RunningGame.IconPath`|String|The full URI of the currently Running Game's Icon| For visual context for whatever the currently running Game is|
 |`RunningGame.CoverPath`|String|The full URI of the currently Running Game's Cover| For visual context for whatever the currently running Game is|
+|`RunningGame.BackgroundPath`|String|The full URI of the currently Running Game's Background Image| For visual context for whatever the currently running Game is|
 |`RunningGame.GameName`|String|The full Name of the currently running Game | For display of the currently running game |
 |`SessionLength`|String|The length of the current gaming session, expressed as `H:MM`| Updates every 10s. E.g. A session of length 123 minutes will be displayed as `2:03`.
 |`GameClosing`|Boolean|Set to `true` when a game is attempted to be closed. Will reset back to `false` once Playnite sees the game has closed| Can be used for notifying the user of the game being closed or handling optimistic updates.

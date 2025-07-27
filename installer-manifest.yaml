@@ -51,3 +51,10 @@ Packages:
     PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.4.0/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_4_0.pext
     Changelog:
       - Add support for custom Now Playing windows
+  - Version: 0.5.0
+    RequiredApiVersion: 6.12.0.0
+    ReleaseDate: 2025-07-27
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.5.0/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_5_0.pext
+    Changelog:
+      - Allow theme creators to retrieve background image for running game
+      - Please contact your favorite theme dev for them to implement it, I can't implement it for them
