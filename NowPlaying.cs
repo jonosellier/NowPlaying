@@ -77,7 +77,7 @@ namespace NowPlaying
             };
 
             LaunchCommand = new RelayCommand(() => ExecuteShowDialog(this));
-            ReturnCommand = new RelayCommand(() => ExecuteReturnToGame(api));
+            ReturnCommand = new RelayCommand(() => ExecuteReturnToGame(this));
             ExitCommand = new RelayCommand(() => ExecuteCloseGame(this));
             LaunchCustomWindowCommand = new RelayCommand(() => ShowNowPlayingWindow(api));
             CloseWindowCommand = new RelayCommand(() => CloseNowPlayingDialog());
@@ -98,17 +98,17 @@ namespace NowPlaying
             keyboardHook.KeyPressed += OnKeyPressed;
         }
 
-        public static void ExecuteReturnToGame(IPlayniteAPI api)
+        public static void ExecuteReturnToGame(NowPlaying instance)
         {
             CloseNowPlayingDialog();
-            var GameData = CreateNowPlayingData(api, api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
+            var GameData = CreateNowPlayingData(instance.Api, instance.Api.Database.Games.FirstOrDefault(g => g.IsRunning), instance.GameData.ProcessId);
             ReturnToGame(GameData);
         }
 
         public static void ExecuteCloseGame(NowPlaying instance)
         {
             CloseNowPlayingDialog();
-            var GameData = CreateNowPlayingData(instance.Api, instance.Api.Database.Games.FirstOrDefault(g => g.IsRunning), null);
+            var GameData = CreateNowPlayingData(instance.Api, instance.Api.Database.Games.FirstOrDefault(g => g.IsRunning), instance.GameData.ProcessId);
             CloseGame(GameData, instance);
         }
 
