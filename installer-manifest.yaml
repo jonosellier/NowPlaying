@@ -58,3 +58,9 @@ Packages:
     Changelog:
       - Allow theme creators to retrieve background image for running game
       - Please contact your favorite theme dev for them to implement it, I can't implement it for them
+  - Version: 0.5.1
+    RequiredApiVersion: 6.12.0.0
+    ReleaseDate: 2025-07-30
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.5.1/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_5_1.pext
+    Changelog:
+      - Better process detection for for low-power emulators
