@@ -1,3 +1,5 @@
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/jonosellier/nowplaying/total)
+
 # Now Playing for Playnite
 
 This extension provides a way for a user to return to their game (similarly to BackToGame) as well as close their current game directly from Playnite
