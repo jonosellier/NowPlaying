@@ -128,6 +128,10 @@ namespace NowPlaying
         [DontSerialize]
         public RelayCommand OpenCustomDialog { get; set; }
 
+
+        [DontSerialize]
+        public RelayCommand InstallOrPlayOrOpenDialog { get; set; }
+
         [DontSerialize]
         public RelayCommand CloseDialog { get; set; }
 

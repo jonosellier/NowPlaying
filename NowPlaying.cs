@@ -54,6 +54,7 @@ namespace NowPlaying
         public ICommand ReturnCommand;
         public ICommand ExitCommand;
         public ICommand LaunchCustomWindowCommand;
+        public ICommand ContextCommand;
         public ICommand CloseWindowCommand;
 
         private GlobalKeyboardHook keyboardHook;
@@ -81,11 +82,13 @@ namespace NowPlaying
             ReturnCommand = new RelayCommand(() => ExecuteReturnToGame(this));
             ExitCommand = new RelayCommand(() => ExecuteCloseGame(this));
             LaunchCustomWindowCommand = new RelayCommand(() => ShowNowPlayingWindow(api));
+            ContextCommand = new RelayCommand(() => PerformMainGameAction(api));
             CloseWindowCommand = new RelayCommand(() => CloseNowPlayingDialog());
             settings.OpenDialog = (RelayCommand)LaunchCommand;
             settings.CloseGame = (RelayCommand)ExitCommand;
             settings.ReturnToGame = (RelayCommand)ReturnCommand;
             settings.OpenCustomDialog = (RelayCommand)LaunchCustomWindowCommand;
+            settings.InstallOrPlayOrOpenDialog = (RelayCommand)ContextCommand;
             settings.CloseDialog = (RelayCommand)CloseWindowCommand;
 
             AddSettingsSupport(new AddSettingsSupportArgs
@@ -239,6 +242,37 @@ namespace NowPlaying
 
             // Use Show or ShowDialog to show the window
             NowPlayingWindow.ShowDialog();
+        }
+
+        private static void PerformMainGameAction(IPlayniteAPI api)
+        {
+            try
+            {
+                var selectedGame = api.MainView.SelectedGames.FirstOrDefault();
+                if (selectedGame != null)
+                {
+                    if (selectedGame.IsInstalled)
+                    {
+                        if (selectedGame.IsRunning)
+                        {
+                            var GameData = CreateNowPlayingData(api, selectedGame, null);
+                            ShowNowPlayingWindow(api);
+                        }
+                        else
+                        {
+                            api.StartGame(selectedGame.Id);
+                        }
+                    }
+                    else
+                    {
+                        api.InstallGame(selectedGame.Id);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to get selected game");
+            }
         }
 
 

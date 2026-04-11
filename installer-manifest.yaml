@@ -64,3 +64,9 @@ Packages:
     PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.5.1/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_5_1.pext
     Changelog:
       - Better process detection for for low-power emulators
+  - Version: 0.5.3
+    RequiredApiVersion: 6.12.0.0
+    ReleaseDate: 2026-04-11
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.5.3/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_5_3.pext
+    Changelog:
+      - Added InstallOrPlayOrOpenDialog command which acts like the vanilla ButtonContext. When a game is not installed, it lets you install it, if it's running it open the NowPlaying dialog, if it's able to be played but is not running, it launches the game.
