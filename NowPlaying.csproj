@@ -52,6 +52,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DebugLogger.cs" />
     <Compile Include="EnumDescriptionConverter.cs" />
     <Compile Include="GlobalKeyboardHook.cs" />
     <Compile Include="NowPlaying.cs" />
@@ -86,6 +87,9 @@
     <None Include="icon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="DEBUGLOGGER_USAGE.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

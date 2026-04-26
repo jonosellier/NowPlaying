@@ -1,9 +1,14 @@
-﻿using System;
+﻿using Playnite.SDK;
+using Playnite.SDK.Events;
+using Playnite.SDK.Models;
+using Playnite.SDK.Plugins;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,10 +16,6 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Markup;
-using Playnite.SDK;
-using Playnite.SDK.Events;
-using Playnite.SDK.Models;
-using Playnite.SDK.Plugins;
 
 
 namespace NowPlaying
@@ -22,8 +23,8 @@ namespace NowPlaying
     public class NowPlaying : GenericPlugin
     {
 
+        private static readonly DebugLogger logger = new DebugLogger(LogManager.GetLogger());
 
-        private static readonly ILogger logger = LogManager.GetLogger();
 
         public IPlayniteAPI Api { get; }
         public NowPlayingSettings settings { get; set; }
@@ -71,6 +72,7 @@ namespace NowPlaying
 
         public NowPlaying(IPlayniteAPI api) : base(api)
         {
+            // logger.WriteToTerminal = true; // Enable terminal logging for debugging
             Api = api;
             settings = new NowPlayingSettings(this);
             Properties = new GenericPluginProperties
@@ -258,6 +260,17 @@ namespace NowPlaying
                             var GameData = CreateNowPlayingData(api, selectedGame, null);
                             ShowNowPlayingWindow(api);
                         }
+                        else if (selectedGame.IsLaunching)
+                        {
+                            try
+                            {
+                                TryCancelGameMonitoring(selectedGame, api);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.Error(ex, "Failed to stop launching game");
+                            }
+                        }
                         else
                         {
                             api.StartGame(selectedGame.Id);
@@ -272,6 +285,47 @@ namespace NowPlaying
             catch (Exception ex)
             {
                 logger.Error(ex, "Failed to get selected game");
+            }
+        }
+
+        private static void TryCancelGameMonitoring(Game game, IPlayniteAPI api)
+        {
+            try
+            {
+                if (api.ApplicationInfo.Mode != ApplicationMode.Fullscreen)
+                    return;
+
+                var mainWindow = System.Windows.Application.Current.MainWindow;
+                var mainModel = mainWindow?.DataContext;
+                if (mainModel == null)
+                    return;
+
+                var flags = BindingFlags.Public | BindingFlags.Instance;
+
+                // mainModel.SelectedGameDetails
+                var selectedGameDetails = mainModel.GetType()
+                    .GetProperty("SelectedGameDetails", flags)
+                    ?.GetValue(mainModel);
+                if (selectedGameDetails == null)
+                    return;
+
+                // mainModel.SelectedGameDetails.ContextActionCommand
+                var contextActionCommand = selectedGameDetails.GetType()
+                    .GetProperty("ContextActionCommand", flags)
+                    ?.GetValue(selectedGameDetails) as System.Windows.Input.ICommand;
+                if (contextActionCommand == null)
+                    return;
+
+                // Execute it on the UI thread
+                mainWindow.Dispatcher.Invoke(() =>
+                {
+                    if (contextActionCommand.CanExecute(null))
+                        contextActionCommand.Execute(null);
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to cancel game monitoring via reflection");
             }
         }
 
@@ -587,22 +641,29 @@ namespace NowPlaying
 
         private static void CloseGame(NowPlayingData data, NowPlaying instance)
         {
-            if (instance.settings.ConfirmClose)
+            try
             {
-                var yesBtn = new MessageBoxOption("Close", true, false);
-                var noBtn = new MessageBoxOption("Cancel", false, true);
+                if (instance.settings.ConfirmClose)
+                {
+                    var yesBtn = new MessageBoxOption("Close", true, false);
+                    var noBtn = new MessageBoxOption("Cancel", false, true);
 
-                var response = instance.Api.Dialogs.ShowMessage("", "Do you want to close " + data.GameName + "?", MessageBoxImage.None, new List<MessageBoxOption> { yesBtn, noBtn });
-                if (response.Title == "Close")
+                    var response = instance.Api.Dialogs.ShowMessage("", "Do you want to close " + data.GameName + "?", MessageBoxImage.None, new List<MessageBoxOption> { yesBtn, noBtn });
+                    if (response.Title == "Close")
+                    {
+                        instance.settings.GameClosing = true; // Set the closing flag to true
+                        GameStateManager.CloseGame(data, instance.settings.CloseBehavior);
+                    }
+                }
+                else
                 {
                     instance.settings.GameClosing = true; // Set the closing flag to true
                     GameStateManager.CloseGame(data, instance.settings.CloseBehavior);
                 }
             }
-            else
+            catch (Exception ex)
             {
-                instance.settings.GameClosing = true; // Set the closing flag to true
-                GameStateManager.CloseGame(data, instance.settings.CloseBehavior);
+                logger.Error($"Error closing game: {ex}");
             }
         }
 
@@ -680,51 +741,56 @@ namespace NowPlaying
 
         public static async void CloseGame(NowPlayingData gameData, CloseBehavior behavior = CloseBehavior.CloseAndEnd)
         {
-            if (gameData == null)
+            try
             {
-                return;
+                if (gameData == null)
+                {
+                    return;
+                }
+                var proc = FindProcessById(gameData.ProcessId);
+                if (proc == null)
+                {
+                    return;
+                }
+                var success = proc.CloseMainWindow();
+                switch (behavior)
+                {
+                    case CloseBehavior.CloseAndEnd:
+                        if (!success)
+                        {
+                            proc.Kill(); // Forcefully kill the process if closing the main window fails
+                        }
+                        for (int i = 0; i < 30 && !proc.HasExited; i++)
+                        {
+                            await Task.Delay(100); // Wait for up to 3 seconds for the process to exit gracefully
+                        }
+                        if (!proc.HasExited)
+                        {
+                            Debug.WriteLine($"Process {proc.ProcessName} did not exit gracefully after 3 seconds, killing it forcefully.");
+                            proc.Kill(); // Forcefully kill the process if it hasn't exited
+                        }
+                        proc.Close();
+                        break;
+                    case CloseBehavior.CloseWindow:
+                        if (!success)
+                        {
+                            proc.Kill(); // Forcefully kill the process if closing the main window fails
+                        }
+                        proc.Close();
+                        break;
+                    case CloseBehavior.EndTask:
+                        proc.Kill(); // Forcefully kill the process regardless
+                        proc.Close();
+                        break;
+                    default:
+                        Debug.WriteLine($"Unknown close behavior: {behavior}");
+                        break;
+                }
             }
-            var proc = FindProcessById(gameData.ProcessId);
-            if (proc == null)
+            catch (Exception ex)
             {
-                return;
+                Debug.WriteLine($"Error closing game process: {ex}");
             }
-            var success = proc.CloseMainWindow();
-            switch (behavior)
-            {
-                case CloseBehavior.CloseAndEnd:
-                    if (!success)
-                    {
-                        proc.Kill(); // Forcefully kill the process if closing the main window fails
-                    }
-                    for (int i = 0; i < 30 && !proc.HasExited; i++)
-                    {
-                        await Task.Delay(100); // Wait for up to 3 seconds for the process to exit gracefully
-                    }
-                    if (!proc.HasExited)
-                    {
-                        Debug.WriteLine($"Process {proc.ProcessName} did not exit gracefully after 3 seconds, killing it forcefully.");
-                        proc.Kill(); // Forcefully kill the process if it hasn't exited
-                    }
-                    proc.Close();
-                    break;
-                case CloseBehavior.CloseWindow:
-                    if (!success)
-                    {
-                        proc.Kill(); // Forcefully kill the process if closing the main window fails
-                    }
-                    proc.Close();
-                    break;
-                case CloseBehavior.EndTask:
-                    proc.Kill(); // Forcefully kill the process regardless
-                    proc.Close();
-                    break;
-                default:
-                    Debug.WriteLine($"Unknown close behavior: {behavior}");
-                    break;
-            }
-
-
         }
     }
 
