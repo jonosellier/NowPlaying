@@ -76,3 +76,9 @@ Packages:
     PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.6.0/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_6_0.pext
     Changelog:
       - Add better cancel game launch support when using custom launch buttons
+  - Version: 0.6.1
+    RequiredApiVersion: 6.12.0.0
+    ReleaseDate: 2026-05-06
+    PackageUrl: https://github.com/jonosellier/NowPlaying/releases/download/v0.6.1/NowPlaying_db4e7ade-57fb-426c-8392-60e2347a0209_0_6_1.pext
+    Changelog:
+      - Added Icon (finally!)
